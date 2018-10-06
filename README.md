@@ -16,7 +16,7 @@ Please enter a menu option and enter or enter to exit.
 
 Option 4
 
-Selected host is: 192.168.15.16 and path is /home/onesecurity
+Selected host is: x.x.x.x and path is /home/xpath
 *********************************************
 ** 1 Remote packet capture
 ** 2 List remote filesystem
