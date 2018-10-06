@@ -1,0 +1,172 @@
+	#!/bin/bash
+
+	# Reading config file
+
+	source /root/parameters.conf
+	echo $fpath 
+	irf_home=/opt/irf/cases
+
+	show_menu(){
+	    NORMAL=`echo "\033[m"`
+	    MENU=`echo "\033[36m"` #Blue
+	    NUMBER=`echo "\033[33m"` #yellow
+	    FGRED=`echo "\033[41m"`
+	    RED_TEXT=`echo "\033[31m"`
+	    ENTER_LINE=`echo "\033[33m"`
+	    echo -e "${MENU}*********************************************${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 1)${MENU} List available host(s) ${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 2)${MENU} Enroll endpoint  ${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 3)${MENU} Delete endpoint  ${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 4)${MENU} Select Endpoint & run IR Tools  ${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 5)${MENU} Exit ${NORMAL}"
+	    echo -e "${MENU}*********************************************${NORMAL}"
+	    echo -e "${ENTER_LINE}Please enter a menu option and enter or ${RED_TEXT}enter to exit. ${NORMAL}"
+	    read opt
+
+	  while [ opt != '' ]
+	  do
+	    if [[ $opt = "" ]]; then
+	      exit;
+	    else
+	      case $opt in
+	      1) clear;
+	      option_picked "Connected hosts";
+	      cat /root/hosts.txt      
+	show_menu;
+	      ;;
+
+	      2) clear;
+	      option_picked "Option 2 Picked";
+	      read -p "Enter the IP address of desired host:  " ans
+	      echo $ans >> /root/hosts.txt   
+
+	show_menu;
+	      ;;
+
+	      3) clear;
+	      option_picked "Option 3 Picked";
+	      read -p "Enter the IP address of endpoint to delete:  " ans3
+	      ex -s +"g/$ans3/d" -cwq /root/hosts.txt 
+	      show_menu;
+	      ;;
+
+	      5) clear;
+	      option_picked "Have a nice day";
+	      exit;
+	      ;;
+	      4) clear;
+	      option_picked "Select endpoint & run IR tools";
+	      nl  /root/hosts.txt  > /root/selection.txt
+	      cat /root/selection.txt      
+
+	      read -p "Select the desired endpoint by it's number list: " numselect 
+	      selendpoint=$(awk '$1 == '$numselect'{print $2}' /root/selection.txt)
+	      clear    
+	      ssh-copy-id onesecurity@$selendpoint 2> /dev/null 
+              echo "Selected host is: $selendpoint and path is $fpath"     
+	sub_menu1;
+	      ;;
+
+	      x)exit;
+	      ;;
+
+	      \n)exit;
+	      ;;
+
+	      *)clear;
+	      option_picked "Pick an option from the menu";
+	      show_menu;
+	      ;;
+	      esac
+	    fi
+	  done
+	}
+
+	function option_picked {
+	    COLOR='\033[01;31m' # bold red
+	    RESET='\033[00;00m' # normal white
+	    MESSAGE=${@:-"${RESET}Error: No message passed"}
+	    echo -e "${COLOR}${MESSAGE}${RESET}"
+	}
+
+	sub_menu1(){
+	    NORMAL=`echo "\033[m"`
+	    MENU=`echo "\033[36m"` #Blue
+	    NUMBER=`echo "\033[33m"` #yellow
+	    FGRED=`echo "\033[41m"`
+	    RED_TEXT=`echo "\033[31m"`
+	    ENTER_LINE=`echo "\033[33m"`
+	    echo -e "${MENU}*********************************************${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 1${MENU} Remote packet capture  ${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 2${MENU} List remote filesystem  ${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 3${MENU} Retrieve remote filesystem  ${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 4${MENU} Extract Files from packet capture  ${NORMAL}"
+	    echo -e "${MENU}**${NUMBER} 5${MENU} Read ufw rules 	 ${NORMAL}"
+	    echo -e "${MENU}*********************************************${NORMAL}"
+	    echo -e "${ENTER_LINE}Please enter a menu option and enter or ${RED_TEXT}enter to exit. ${NORMAL}"
+	    read sub1
+	  while [ sub1 != '' ]
+	  do
+	    if [[ $sub1 = "" ]]; then
+	      exit;
+	    else
+	      case $sub1 in
+	      1) clear;
+	      option_picked "remote packet capture";
+	      echo "Selected host $selendpoint"
+	      ssh -t $username@$selendpoint "sudo tcpdump -i any -nvvv -s0 -G15 -W1 -w /tmp/`date +"%d-%m-%Y"`.pcap"
+	      scp $username@$selendpoint:/tmp/*.pcap /opt/irf/cases/$selendpoint/
+	      echo "........................................................................................."
+	echo  "Packet Capture was saved on the server at: /opt/irf/cases/$selendpoint "
+	      
+	sub_menu1;
+	      ;;
+
+	      2) clear;
+	      option_picked "These are the files inside $fpath and max depth of $fdepth";
+	      ssh $username@$selendpoint "find $fpath -maxdepth $fdepth -type f -exec ls -ld "{}" \;"
+              read -t 10 -p "Press Enter to continue"
+              clear; 
+	sub_menu1;
+
+	      ;;
+	     
+	      3) ssh $username@$selendpoint "find $fpath -maxdepth $fdepth -type f -exec ls -ld "{}" \; | ls /tmp "
+	  
+	      read -p "Type the path and filename that you would like to retrieve from host: " fileget
+	      mkdir $irf_home/$selendpoint
+	      scp $username@$selendpoint:$fileget $irf_home/$selendpoint/     
+	      echo "........................................................................................."
+	      echo  "Your file was saved on /opt/irf/cases/$selendpoint "
+	sub_menu1;
+	      ;;
+
+	      4) option_picked "Select the packet capture file from the following path: "
+	      ls -lrth $irf_home/$selendpoint
+	      echo "-----------------------------------------------------------------------------------------"
+	      read -p "Type the packet capture filename to extract available files: "  fextract
+	      foremost -T -v -i $irf_home/$selendpoint/$fextract -o $irf_home/$selendpoint/output
+	      echo "Output was saved on the following path $HOME "	
+	sub_menu1;
+
+	      ;;
+
+	      5) option_picked "Read ufw rules from: $selendpoint"
+		 ssh  -t $username@$selendpoint "sudo cat /etc/ufw/user.rules"	
+                 read -t 10 -p "Press Enter to continue"
+                 clear;   
+#		 scp $username@$selendpoint:/tmp/rules.tmp $irf_home/$selendpoint/
+#		 cat $irf_home/$selendpoint/rules.tmp 
+              sub_menu1;
+              ;;
+      
+*)      clear;
+      sub_menu1;
+      ;;
+      esac
+    fi
+  done
+}
+
+clear
+show_menu
